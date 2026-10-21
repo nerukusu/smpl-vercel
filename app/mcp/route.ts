@@ -44,9 +44,13 @@ export async function POST(request: Request) {
   if (method === "ping") return rpc(id, {});
   if (method === "tools/list") {
     const device = await registeredDevice();
-    return rpc(id, { tools: device?.tools || [] });
+    const tools = (device?.tools || []).filter((tool) => tool.name !== "run_shell");
+    return rpc(id, { tools });
   }
   if (method !== "tools/call") return rpcError(id, -32601, "Method not found");
+  if (String(params?.name || "") === "run_shell") {
+    return rpcError(id, -32601, "run_shell is not exposed through the remote relay");
+  }
 
   const device = await onlineDevice();
   if (!device) return rpc(id, { content: [{ type: "text", text: "Windows client is offline." }], isError: true });
