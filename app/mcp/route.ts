@@ -15,7 +15,7 @@ function rpcError(id: unknown, code: number, message: string) {
 function unauthorized(request: Request) {
   const metadata = `${origin(request)}/.well-known/oauth-protected-resource/mcp`;
   return json({ error: "unauthorized" }, 401, {
-    "WWW-Authenticate": `Bearer error="invalid_token", resource_metadata="${metadata}"`,
+    "WWW-Authenticate": `Bearer error="invalid_token", error_description="Authentication required", resource_metadata="${metadata}"`,
   });
 }
 

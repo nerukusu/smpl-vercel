@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     const clientSecret = method === "none" ? null : randomToken(32);
     const client: OAuthClient = {
       ...body,
+      application_type: body.application_type || "native",
       client_id: clientId,
       client_secret: clientSecret,
       client_id_issued_at: Math.floor(Date.now() / 1000),
