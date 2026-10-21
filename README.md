@@ -97,3 +97,19 @@ npm run dev
 ```
 
 `.env.local` には `.env.example` と同じ変数を設定してください。
+
+## Windows relay client behavior
+
+The Windows client pairs once with `SMPL_OWNER_SECRET`, then stores its generated device secret using Windows DPAPI. Normal MCP tool calls do **not** require a 32-character tool PIN.
+
+The client connects outbound to this Vercel relay over HTTPS, so no inbound port forwarding is required on the Windows PC.
+
+`run_shell` is intentionally restricted to a single form:
+
+```text
+cat <path>
+```
+
+The Windows client parses the path itself and invokes PowerShell with a fixed command using `Get-Content -LiteralPath`. The user-provided command string is not evaluated as PowerShell code. Other tool calls such as screenshots, mouse/keyboard input, app launch, and file operations are handled by the Windows client after initial pairing.
+
+If the relay pairing needs to be reset, run the client with `--reset` and launch it again.
