@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { ACCESS_TTL, TokenRecord, authenticateClient, issueTokens } from "@/lib/oauth";
-import { getJson, redis } from "@/lib/redis";
+import { delJson, getJson } from "@/lib/supabase";
 import { json, safeEqual } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -42,15 +42,9 @@ export async function POST(request: Request) {
       return json({ error: "invalid_grant", error_description: "PKCE verification failed" }, 400);
     }
 
-    await redis(["DEL", `smpl:oauth:code:${code}`]);
+    await delJson(`smpl:oauth:code:${code}`);
     const { access, refresh } = await issueTokens(client.client_id, record.scopes, record.resource);
-    return json({
-      access_token: access,
-      token_type: "Bearer",
-      expires_in: ACCESS_TTL,
-      refresh_token: refresh,
-      scope: record.scopes.join(" "),
-    });
+    return json({ access_token: access, token_type: "Bearer", expires_in: ACCESS_TTL, refresh_token: refresh, scope: record.scopes.join(" ") });
   }
 
   if (grant === "refresh_token") {
@@ -59,15 +53,9 @@ export async function POST(request: Request) {
     if (!record || record.client_id !== client.client_id || record.expires_at <= Math.floor(Date.now() / 1000)) {
       return json({ error: "invalid_grant" }, 400);
     }
-    await redis(["DEL", `smpl:oauth:refresh:${old}`]);
+    await delJson(`smpl:oauth:refresh:${old}`);
     const { access, refresh } = await issueTokens(client.client_id, record.scopes, record.resource);
-    return json({
-      access_token: access,
-      token_type: "Bearer",
-      expires_in: ACCESS_TTL,
-      refresh_token: refresh,
-      scope: record.scopes.join(" "),
-    });
+    return json({ access_token: access, token_type: "Bearer", expires_in: ACCESS_TTL, refresh_token: refresh, scope: record.scopes.join(" ") });
   }
 
   return json({ error: "unsupported_grant_type" }, 400);

@@ -1,4 +1,4 @@
-import { getJson, redis, setJson } from "./redis";
+import { delJson, getJson, setJson } from "./supabase";
 import { origin, randomToken, safeEqual } from "./security";
 
 export const SCOPES = ["mcp", "offline_access"];
@@ -94,6 +94,6 @@ export async function validBearer(request: Request) {
 }
 
 export async function revokeToken(token: string) {
-  await redis(["DEL", `smpl:oauth:access:${token}`]);
-  await redis(["DEL", `smpl:oauth:refresh:${token}`]);
+  await delJson(`smpl:oauth:access:${token}`);
+  await delJson(`smpl:oauth:refresh:${token}`);
 }

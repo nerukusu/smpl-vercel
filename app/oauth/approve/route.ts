@@ -1,5 +1,5 @@
 import { getClient } from "@/lib/oauth";
-import { getJson, redis, setJson } from "@/lib/redis";
+import { delJson, getJson, incrementJson, setJson } from "@/lib/supabase";
 import { ownerSecret, randomToken, safeEqual } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -42,12 +42,11 @@ export async function POST(request: Request) {
   if (pending.state) callback.searchParams.set("state", pending.state);
   if (String(form.get("action")) === "deny") {
     callback.searchParams.set("error", "access_denied");
-    await redis(["DEL", `smpl:oauth:pending:${id}`]);
+    await delJson(`smpl:oauth:pending:${id}`);
     return Response.redirect(callback, 303);
   }
 
-  const attempts = Number(await redis<number>(["INCR", `smpl:oauth:attempts:${id}`]));
-  await redis(["EXPIRE", `smpl:oauth:attempts:${id}`, 300]);
+  const attempts = await incrementJson(`smpl:oauth:attempts:${id}`, 300);
   if (attempts > 5) return new Response("Too many attempts", { status: 429 });
 
   let ok = false;
@@ -62,7 +61,7 @@ export async function POST(request: Request) {
 
   const code = `code_${randomToken(32)}`;
   await setJson(`smpl:oauth:code:${code}`, pending, 300);
-  await redis(["DEL", `smpl:oauth:pending:${id}`]);
+  await delJson(`smpl:oauth:pending:${id}`);
   callback.searchParams.set("code", code);
   return Response.redirect(callback, 303);
 }

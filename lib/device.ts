@@ -1,4 +1,4 @@
-import { getJson, redis, setJson } from "./redis";
+import { getJson, listJsonPrefix, setJson } from "./supabase";
 import { safeEqual, sha256 } from "./security";
 
 export type ToolDefinition = {
@@ -16,12 +16,10 @@ export type DeviceRecord = {
 };
 
 const key = (id: string) => `smpl:device:${id}`;
-const heartbeatKey = (id: string) => `smpl:device:${id}:heartbeat`;
-const queueKey = (id: string) => `smpl:device:${id}:queue`;
+const heartbeatKey = (id: string) => `smpl:heartbeat:${id}`;
 
 export async function registerDevice(record: DeviceRecord) {
   await setJson(key(record.id), record);
-  await redis(["SADD", "smpl:devices", record.id]);
 }
 
 export async function getDevice(id: string) {
@@ -38,22 +36,22 @@ export async function authenticateDevice(request: Request): Promise<DeviceRecord
 }
 
 export async function touchDevice(id: string) {
-  await redis(["SET", heartbeatKey(id), String(Date.now()), "EX", 15]);
+  await setJson(heartbeatKey(id), Date.now(), 15);
 }
 
 export async function isOnline(id: string) {
-  return Boolean(await redis<string | null>(["GET", heartbeatKey(id)]));
+  return (await getJson<number>(heartbeatKey(id))) !== null;
+}
+
+async function devices() {
+  const rows = await listJsonPrefix<DeviceRecord>("smpl:device:");
+  return rows.map((row) => row.value).filter((record) => record?.id);
 }
 
 export async function registeredDevice(): Promise<DeviceRecord | null> {
   const pinned = process.env.SMPL_DEVICE_ID;
   if (pinned) return getDevice(pinned);
-  const ids = (await redis<string[]>(["SMEMBERS", "smpl:devices"])) || [];
-  for (const id of ids) {
-    const record = await getDevice(id);
-    if (record) return record;
-  }
-  return null;
+  return (await devices())[0] || null;
 }
 
 export async function onlineDevice(): Promise<DeviceRecord | null> {
@@ -62,20 +60,8 @@ export async function onlineDevice(): Promise<DeviceRecord | null> {
     const record = await getDevice(pinned);
     return record && (await isOnline(pinned)) ? record : null;
   }
-  const ids = (await redis<string[]>(["SMEMBERS", "smpl:devices"])) || [];
-  for (const id of ids) {
-    if (await isOnline(id)) {
-      const record = await getDevice(id);
-      if (record) return record;
-    }
+  for (const record of await devices()) {
+    if (await isOnline(record.id)) return record;
   }
   return null;
-}
-
-export async function enqueue(id: string, jobId: string) {
-  await redis(["RPUSH", queueKey(id), jobId]);
-}
-
-export async function dequeue(id: string) {
-  return redis<string | null>(["LPOP", queueKey(id)]);
 }

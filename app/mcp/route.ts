@@ -1,6 +1,6 @@
-import { enqueue, onlineDevice, registeredDevice } from "@/lib/device";
-import { getJson, redis, setJson } from "@/lib/redis";
-import { resourceUrl, validBearer } from "@/lib/oauth";
+import { onlineDevice, registeredDevice } from "@/lib/device";
+import { createJob, deleteJob, getJobResult } from "@/lib/supabase";
+import { validBearer } from "@/lib/oauth";
 import { json, origin, randomToken } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     return rpc(id, {
       protocolVersion: params.protocolVersion || "2025-06-18",
       capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: "smpl-vercel-relay", version: "0.1.0" },
+      serverInfo: { name: "smpl-vercel-relay", version: "0.2.0" },
     });
   }
   if (method === "ping") return rpc(id, {});
@@ -49,24 +49,20 @@ export async function POST(request: Request) {
   if (method !== "tools/call") return rpcError(id, -32601, "Method not found");
 
   const device = await onlineDevice();
-  if (!device) {
-    return rpc(id, { content: [{ type: "text", text: "Windows client is offline." }], isError: true });
-  }
+  if (!device) return rpc(id, { content: [{ type: "text", text: "Windows client is offline." }], isError: true });
 
   const jobId = randomToken(24);
-  await setJson(`smpl:job:${jobId}`, { deviceId: device.id, request: body, createdAt: Date.now() }, 90);
-  await enqueue(device.id, jobId);
+  await createJob(jobId, device.id, body, 90);
 
   const deadline = Date.now() + 45_000;
   while (Date.now() < deadline) {
-    const result = await getJson<any>(`smpl:result:${jobId}`);
+    const result = await getJobResult(jobId);
     if (result) {
-      await redis(["DEL", `smpl:result:${jobId}`]);
-      await redis(["DEL", `smpl:job:${jobId}`]);
+      await deleteJob(jobId);
       return json(result);
     }
     await new Promise((resolve) => setTimeout(resolve, 650));
   }
-  await redis(["DEL", `smpl:job:${jobId}`]);
+  await deleteJob(jobId);
   return rpc(id, { content: [{ type: "text", text: "Windows client did not respond before the relay timeout." }], isError: true });
 }

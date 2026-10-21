@@ -9,7 +9,7 @@ ChatGPT
    │ HTTPS / OAuth / MCP
    ▼
 Vercel (smpl-vercel)
-   │ Redis queue
+   │ Supabase queue
    ▼
 Windows MRUS-Control.exe
    │ Windows API / PowerShell
@@ -31,21 +31,16 @@ Vercel Functionsは常駐WebSocketサーバーには向かないため、Windows
 
 MCPの各tool callにはPINを追加しません。
 
-### Redis
+### Supabase
 
-Upstash Redis RESTを接続し、以下を設定します。
-
-```text
-UPSTASH_REDIS_REST_URL
-UPSTASH_REDIS_REST_TOKEN
-```
-
-Vercel KV互換の以下の名前でも動きます。
+中継状態とジョブキューはSupabaseに保存します。VercelのProduction環境に次を設定します。
 
 ```text
-KV_REST_API_URL
-KV_REST_API_TOKEN
+SUPABASE_URL
+SUPABASE_SECRET_KEY
 ```
+
+初回だけSupabase SQL Editorでリポジトリの `supabase.sql` を実行してください。
 
 ### `SMPL_DEVICE_ID`（任意）
 
@@ -79,9 +74,9 @@ https://<your-vercel-domain>/mcp
 
 ## セキュリティ
 
-このMCPには制限なしのPowerShell実行やファイル操作が含まれます。`SMPL_OWNER_SECRET` とVercel/Redisの秘密情報は公開しないでください。
+このMCPには制限なしのPowerShell実行やファイル操作が含まれます。`SMPL_OWNER_SECRET` とVercel/Supabaseの秘密情報は公開しないでください。
 
-Windowsクライアントのdevice secretはランダム生成され、ChatGPTへは渡しません。Vercel側にはdevice secretそのものではなくSHA-256ハッシュだけを保存します。
+Windowsクライアントのdevice secretはランダム生成され、ChatGPTへは渡しません。Supabase側にはdevice secretそのものではなくSHA-256ハッシュだけを保存します。
 
 ## リレー制限
 

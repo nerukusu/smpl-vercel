@@ -1,5 +1,5 @@
 import { getClient, resourceUrl } from "@/lib/oauth";
-import { setJson } from "@/lib/redis";
+import { setJson } from "@/lib/supabase";
 import { json, origin, randomToken } from "@/lib/security";
 
 export const runtime = "nodejs";
