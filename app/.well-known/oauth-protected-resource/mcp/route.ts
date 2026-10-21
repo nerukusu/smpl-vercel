@@ -12,6 +12,6 @@ export async function GET(request: Request) {
       bearer_methods_supported: ["header"],
     },
     200,
-    { "Cache-Control": "public, max-age=3600" },
+    { "Cache-Control": "no-store" },
   );
 }

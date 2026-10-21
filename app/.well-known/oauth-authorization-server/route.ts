@@ -20,6 +20,6 @@ export async function GET(request: Request) {
       code_challenge_methods_supported: ["S256"],
     },
     200,
-    { "Cache-Control": "public, max-age=3600" },
+    { "Cache-Control": "no-store" },
   );
 }
