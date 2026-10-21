@@ -1,0 +1,99 @@
+# smpl-vercel
+
+Vercel上に置く、ChatGPT ↔ Windows MRUS Control 用のMCP中継です。
+
+## 仕組み
+
+```text
+ChatGPT
+   │ HTTPS / OAuth / MCP
+   ▼
+Vercel (smpl-vercel)
+   │ Redis queue
+   ▼
+Windows MRUS-Control.exe
+   │ Windows API / PowerShell
+   ▼
+Windows PC
+```
+
+Windows側からVercelへ外向きHTTPS通信だけを行うため、家庭側ルーターのポート開放は不要です。
+Vercel Functionsは常駐WebSocketサーバーには向かないため、Windowsクライアントは短い間隔で `/api/device/poll` をポーリングします。
+
+## 必要なVercel環境変数
+
+### `SMPL_OWNER_SECRET`
+
+自分で決める強いパスワードです。次の2か所だけで使います。
+
+- Windows exeの初回ペアリング
+- ChatGPT OAuth接続時の承認画面
+
+MCPの各tool callにはPINを追加しません。
+
+### Redis
+
+Upstash Redis RESTを接続し、以下を設定します。
+
+```text
+UPSTASH_REDIS_REST_URL
+UPSTASH_REDIS_REST_TOKEN
+```
+
+Vercel KV互換の以下の名前でも動きます。
+
+```text
+KV_REST_API_URL
+KV_REST_API_TOKEN
+```
+
+### `SMPL_DEVICE_ID`（任意）
+
+複数端末を登録したときに、ChatGPTから操作する端末を固定したい場合だけ設定します。
+
+## デプロイ後
+
+1. VercelのProduction URLを確認します。例: `https://smpl-vercel.vercel.app`
+2. Windowsで `MRUS-Control.exe` を起動します。
+3. 初回だけRelay URLと `SMPL_OWNER_SECRET` を入力します。
+4. exeが端末専用のdevice secretを自動生成し、`%LOCALAPPDATA%\MRUS-Control\relay.json` に保存します。
+5. トップページが `Windows client online` になれば中継準備完了です。
+
+## ChatGPTへ登録
+
+MCP URL:
+
+```text
+https://<your-vercel-domain>/mcp
+```
+
+認証方式はOAuthを選びます。このサーバーは次を実装しています。
+
+- OAuth Authorization Code
+- PKCE S256
+- Dynamic Client Registration
+- refresh token rotation
+- RFC 9728 Protected Resource Metadata
+
+接続時にブラウザで承認画面が開くので、`SMPL_OWNER_SECRET` を入力して許可します。
+
+## セキュリティ
+
+このMCPには制限なしのPowerShell実行やファイル操作が含まれます。`SMPL_OWNER_SECRET` とVercel/Redisの秘密情報は公開しないでください。
+
+Windowsクライアントのdevice secretはランダム生成され、ChatGPTへは渡しません。Vercel側にはdevice secretそのものではなくSHA-256ハッシュだけを保存します。
+
+## リレー制限
+
+1回のMCP tool callはVercel側で最大約45秒待機します。長時間処理はクライアント側で完了してもChatGPT側が先にタイムアウトする場合があります。
+
+スクリーンショット等はWindowsクライアント側でサイズを抑えて送る設計です。
+
+## ローカル開発
+
+```bash
+npm install
+npm run dev
+```
+
+`.env.local` には `.env.example` と同じ変数を設定してください。
