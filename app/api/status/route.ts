@@ -18,7 +18,7 @@ export async function GET() {
       ok: true,
       configured: true,
       storage: "supabase",
-      device: device ? { id: device.id, name: device.name, online: await isOnline(device.id), registeredAt: device.registeredAt } : null,
+      device: device ? { id: device.id, name: device.name, online: await isOnline(device.id), registeredAt: device.registeredAt, toolCount: device.tools.length, toolNames: device.tools.map((t) => t.name) } : null,
     });
   } catch (error) {
     return json({ ok: false, configured: true, storage: "supabase", error: String(error) }, 503);
